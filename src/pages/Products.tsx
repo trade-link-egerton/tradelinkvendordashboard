@@ -1,18 +1,13 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import {
-  PlusIcon,
-  MoreVerticalIcon,
-  EditIcon,
-  CopyIcon,
-  Trash2Icon,
-  EyeOffIcon,
-  FilterIcon } from
-'lucide-react';
+import { PlusIcon, EditIcon, Trash2Icon, FilterIcon } from 'lucide-react';
+import { toast } from 'sonner';
 import { DataTable, Column } from '../components/shared/DataTable';
 import { StatusBadge } from '../components/shared/StatusBadge';
-// Mock Data
-interface Product {
+import { ApiError } from '../lib/api';
+import { Product, deleteProduct, listProducts } from '../lib/vendorApi';
+
+interface ProductRow {
   id: string;
   name: string;
   category: string;
@@ -21,164 +16,146 @@ interface Product {
   status: 'Active' | 'Draft' | 'Out of Stock';
   image: string;
 }
-const mockProducts: Product[] = [
-{
-  id: '1',
-  name: 'Samsung Galaxy A54 5G',
-  category: 'Electronics > Phones',
-  price: 45000,
-  stock: 12,
-  status: 'Active',
-  image:
-  'https://images.unsplash.com/photo-1610945265064-0e34e5519bbf?w=100&h=100&fit=crop'
-},
-{
-  id: '2',
-  name: 'Sony WH-1000XM5 Headphones',
-  category: 'Electronics > Audio',
-  price: 35000,
-  stock: 5,
-  status: 'Active',
-  image:
-  'https://images.unsplash.com/photo-1618366712010-f4ae9c647dcb?w=100&h=100&fit=crop'
-},
-{
-  id: '3',
-  name: 'Anker PowerCore 20K',
-  category: 'Electronics > Accessories',
-  price: 6500,
-  stock: 0,
-  status: 'Out of Stock',
-  image:
-  'https://images.unsplash.com/photo-1609091839311-d5365f9ff1c5?w=100&h=100&fit=crop'
-},
-{
-  id: '4',
-  name: "Men's Classic Leather Watch",
-  category: 'Fashion > Watches',
-  price: 12500,
-  stock: 8,
-  status: 'Active',
-  image:
-  'https://images.unsplash.com/photo-1524592094714-0f0654e20314?w=100&h=100&fit=crop'
-},
-{
-  id: '5',
-  name: 'Nike Air Max 270',
-  category: 'Fashion > Shoes',
-  price: 18000,
-  stock: 24,
-  status: 'Active',
-  image:
-  'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=100&h=100&fit=crop'
-},
-{
-  id: '6',
-  name: 'MacBook Pro M2 14"',
-  category: 'Electronics > Laptops',
-  price: 285000,
-  stock: 3,
-  status: 'Draft',
-  image:
-  'https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=100&h=100&fit=crop'
-},
-{
-  id: '7',
-  name: 'Logitech MX Master 3S',
-  category: 'Electronics > Accessories',
-  price: 14500,
-  stock: 15,
-  status: 'Active',
-  image:
-  'https://images.unsplash.com/photo-1527864550417-7fd91fc51a46?w=100&h=100&fit=crop'
-}];
+
+function mapProductToRow(product: Product): ProductRow {
+  const stock = Number(product.stock_quantity || 0);
+  const statusFromApi = product.status || (product.is_published ? 'active' : 'draft');
+  const normalizedStatus: ProductRow['status'] =
+    stock <= 0 ? 'Out of Stock' : statusFromApi === 'active' ? 'Active' : 'Draft';
+
+  return {
+    id: String(product.id),
+    name: product.name,
+    category: product.category_name || 'Uncategorized',
+    price: Number(product.price || 0),
+    stock,
+    status: normalizedStatus,
+    image:
+      product.image_url ||
+      'https://images.unsplash.com/photo-1484704849700-f032a568e944?w=100&h=100&fit=crop'
+  };
+}
 
 export function Products() {
   const [searchQuery, setSearchQuery] = useState('');
-  const columns: Column<Product>[] = [
-  {
-    header: 'Product',
-    accessor: (row) =>
-    <div className="flex items-center gap-3">
+  const [products, setProducts] = useState<ProductRow[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+
+  const loadProducts = async () => {
+    setIsLoading(true);
+    try {
+      const response = await listProducts();
+      setProducts(response.map(mapProductToRow));
+    } catch (error) {
+      const message =
+        error instanceof ApiError
+          ? error.detail
+          : 'Failed to fetch products.';
+      toast.error(message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    void loadProducts();
+  }, []);
+
+  const handleDelete = async (id: string) => {
+    try {
+      await deleteProduct(id);
+      toast.success('Product deleted.');
+      await loadProducts();
+    } catch {
+      toast.error('Unable to delete product.');
+    }
+  };
+
+  const columns: Column<ProductRow>[] = [
+    {
+      header: 'Product',
+      accessor: (row) => (
+        <div className="flex items-center gap-3">
           <img
-        src={row.image}
-        alt={row.name}
-        className="w-10 h-10 rounded-lg object-cover border border-[var(--border-color)]" />
-      
+            src={row.image}
+            alt={row.name}
+            className="w-10 h-10 rounded-lg object-cover border border-[var(--border-color)]"
+          />
           <div>
             <p className="font-medium text-[var(--text-primary)]">{row.name}</p>
-            <p className="text-xs text-[var(--text-secondary)]">
-              ID: #{row.id.padStart(4, '0')}
-            </p>
+            <p className="text-xs text-[var(--text-secondary)]">ID: #{row.id}</p>
           </div>
         </div>
-
-  },
-  {
-    header: 'Category',
-    accessor: 'category',
-    className: 'text-[var(--text-secondary)]'
-  },
-  {
-    header: 'Price',
-    accessor: (row) =>
-    <span className="font-mono">KES {row.price.toLocaleString()}</span>
-
-  },
-  {
-    header: 'Stock',
-    accessor: (row) =>
-    <span
-      className={`font-mono ${row.stock === 0 ? 'text-destructive-600' : ''}`}>
-      
-          {row.stock}
-        </span>
-
-  },
-  {
-    header: 'Status',
-    accessor: (row) =>
-    <StatusBadge
-      status={row.status}
-      variant={
-      row.status === 'Active' ?
-      'success' :
-      row.status === 'Out of Stock' ?
-      'destructive' :
-      'neutral'
-      } />
-
-
-  },
-  {
-    header: '',
-    accessor: (row) =>
-    <div className="flex justify-end">
-          <button className="p-1.5 text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)] rounded-md">
-            <MoreVerticalIcon size={18} />
+      )
+    },
+    { header: 'Category', accessor: 'category', className: 'text-[var(--text-secondary)]' },
+    {
+      header: 'Price',
+      accessor: (row) => <span className="font-mono">KES {row.price.toLocaleString()}</span>
+    },
+    {
+      header: 'Stock',
+      accessor: (row) => (
+        <span className={`font-mono ${row.stock === 0 ? 'text-destructive-600' : ''}`}>{row.stock}</span>
+      )
+    },
+    {
+      header: 'Status',
+      accessor: (row) => (
+        <StatusBadge
+          status={row.status}
+          variant={
+            row.status === 'Active' ? 'success' : row.status === 'Out of Stock' ? 'destructive' : 'neutral'
+          }
+        />
+      )
+    },
+    {
+      header: 'Actions',
+      accessor: (row) => (
+        <div className="flex items-center justify-end gap-2">
+          <Link
+            to={`/products/${row.id}/edit`}
+            className="p-1.5 text-[var(--text-secondary)] hover:text-brand-600 rounded-md"
+            title="Edit Product"
+          >
+            <EditIcon size={18} />
+          </Link>
+          <button
+            className="p-1.5 text-[var(--text-secondary)] hover:text-destructive-600 rounded-md"
+            title="Delete Product"
+            onClick={() => void handleDelete(row.id)}
+          >
+            <Trash2Icon size={18} />
           </button>
         </div>
+      )
+    }
+  ];
 
-  }];
-
-  const filteredProducts = mockProducts.filter(
-    (p) =>
-    p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    p.category.toLowerCase().includes(searchQuery.toLowerCase())
+  const filteredProducts = useMemo(
+    () =>
+      products.filter(
+        (p) =>
+          p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          p.category.toLowerCase().includes(searchQuery.toLowerCase())
+      ),
+    [products, searchQuery]
   );
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-heading font-bold text-[var(--text-primary)]">
-            Products
-          </h1>
+          <h1 className="text-2xl font-heading font-bold text-[var(--text-primary)]">Products</h1>
           <p className="text-[var(--text-secondary)]">
             Manage your inventory, pricing, and product details.
           </p>
         </div>
         <div className="flex items-center gap-3">
-          <button className="btn-secondary">Export</button>
+          <button className="btn-secondary" disabled>
+            Export
+          </button>
           <Link to="/products/new" className="btn-primary">
             <PlusIcon size={18} /> Add Product
           </Link>
@@ -191,11 +168,11 @@ export function Products() {
         searchPlaceholder="Search products by name or category..."
         onSearch={setSearchQuery}
         actions={
-        <button className="btn-secondary py-1.5">
-            <FilterIcon size={16} /> Filter
+          <button className="btn-secondary py-1.5" onClick={() => void loadProducts()} disabled={isLoading}>
+            <FilterIcon size={16} /> {isLoading ? 'Refreshing...' : 'Refresh'}
           </button>
-        } />
-      
-    </div>);
-
+        }
+      />
+    </div>
+  );
 }

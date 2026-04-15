@@ -1,170 +1,148 @@
-import React from 'react';
-import {
-  Plus,
-  ChevronRight,
-  Folder,
-  FolderOpen,
-  MoreVertical,
-  Edit,
-  Trash2 } from
-'lucide-react';
-const mockCategories = [
-{
-  id: '1',
-  name: 'Electronics',
-  count: 145,
-  isOpen: true,
-  children: [
-  {
-    id: '1-1',
-    name: 'Phones & Tablets',
-    count: 56
-  },
-  {
-    id: '1-2',
-    name: 'Laptops & Computers',
-    count: 42
-  },
-  {
-    id: '1-3',
-    name: 'Audio & Headphones',
-    count: 28
-  },
-  {
-    id: '1-4',
-    name: 'Accessories',
-    count: 19
-  }]
+import React, { useEffect, useState } from 'react';
+import { Plus, Folder, FolderOpen, Edit, Trash2 } from 'lucide-react';
+import { toast } from 'sonner';
+import { Category, createCategory, deleteCategory, getCategoryTree } from '../lib/vendorApi';
 
-},
-{
-  id: '2',
-  name: 'Fashion',
-  count: 89,
-  isOpen: false,
-  children: [
-  {
-    id: '2-1',
-    name: "Men's Clothing",
-    count: 34
-  },
-  {
-    id: '2-2',
-    name: "Women's Clothing",
-    count: 41
-  },
-  {
-    id: '2-3',
-    name: 'Shoes',
-    count: 14
-  }]
+function CategoryRow({
+  category,
+  depth,
+  onDelete
+}: {
+  category: Category;
+  depth: number;
+  onDelete: (id: string) => Promise<void>;
+}) {
+  const hasChildren = Boolean(category.children && category.children.length > 0);
 
-},
-{
-  id: '3',
-  name: 'Home & Living',
-  count: 67,
-  isOpen: false,
-  children: []
-}];
+  return (
+    <div className="mb-1" style={{ marginLeft: `${depth * 16}px` }}>
+      <div className="flex items-center justify-between p-3 rounded-lg hover:bg-[var(--bg-secondary)] transition-colors group">
+        <div className="flex items-center gap-3">
+          <span className="text-[var(--text-secondary)]">
+            {hasChildren ? <FolderOpen size={18} className="text-brand-500" /> : <Folder size={18} />}
+          </span>
+          <span className="font-medium text-[var(--text-primary)]">{category.name}</span>
+        </div>
+        <div className="flex items-center gap-4">
+          <span className="text-sm text-[var(--text-secondary)] w-12 text-right">
+            {category.product_count || 0}
+          </span>
+          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+            <button className="p-1.5 text-[var(--text-secondary)] hover:text-brand-600 rounded" disabled>
+              <Edit size={16} />
+            </button>
+            <button
+              className="p-1.5 text-[var(--text-secondary)] hover:text-destructive-600 rounded"
+              onClick={() => void onDelete(String(category.id))}
+            >
+              <Trash2 size={16} />
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {hasChildren && (
+        <div className="pl-4 border-l border-[var(--border-color)] mt-1">
+          {category.children?.map((child) => (
+            <CategoryRow key={String(child.id)} category={child} depth={depth + 1} onDelete={onDelete} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export function Categories() {
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [newCategoryName, setNewCategoryName] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const loadCategories = async () => {
+    try {
+      const response = await getCategoryTree();
+      setCategories(response);
+    } catch {
+      toast.error('Failed to load categories.');
+    }
+  };
+
+  useEffect(() => {
+    void loadCategories();
+  }, []);
+
+  const handleCreate = async () => {
+    if (!newCategoryName.trim()) {
+      toast.error('Enter category name first.');
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      await createCategory({ name: newCategoryName.trim() });
+      setNewCategoryName('');
+      toast.success('Category created.');
+      await loadCategories();
+    } catch {
+      toast.error('Unable to create category.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    try {
+      await deleteCategory(id);
+      toast.success('Category deleted.');
+      await loadCategories();
+    } catch {
+      toast.error('Unable to delete category.');
+    }
+  };
+
   return (
     <div className="space-y-6 max-w-5xl mx-auto">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-heading font-bold text-[var(--text-primary)]">
-            Categories
-          </h1>
+          <h1 className="text-2xl font-heading font-bold text-[var(--text-primary)]">Categories</h1>
           <p className="text-[var(--text-secondary)]">
             Organize your products into categories for easier navigation.
           </p>
         </div>
-        <button className="btn-primary">
-          <Plus size={18} /> Add Category
+      </div>
+
+      <div className="card p-4 flex gap-3 items-center">
+        <input
+          className="input-field"
+          placeholder="Create a new category"
+          value={newCategoryName}
+          onChange={(e) => setNewCategoryName(e.target.value)}
+        />
+        <button className="btn-primary" onClick={() => void handleCreate()} disabled={isSubmitting}>
+          <Plus size={18} /> {isSubmitting ? 'Saving...' : 'Add Category'}
         </button>
       </div>
 
       <div className="card overflow-hidden">
         <div className="p-4 border-b border-[var(--border-color)] bg-[var(--bg-secondary)] flex items-center justify-between">
-          <span className="font-medium text-[var(--text-primary)]">
-            Category Tree
-          </span>
-          <span className="text-sm text-[var(--text-secondary)]">
-            Products Count
-          </span>
+          <span className="font-medium text-[var(--text-primary)]">Category Tree</span>
+          <span className="text-sm text-[var(--text-secondary)]">Products Count</span>
         </div>
 
         <div className="p-2">
-          {mockCategories.map((category) =>
-          <div key={category.id} className="mb-1">
-              <div
-              className={`flex items-center justify-between p-3 rounded-lg hover:bg-[var(--bg-secondary)] transition-colors group ${category.isOpen ? 'bg-[var(--bg-secondary)]/50' : ''}`}>
-              
-                <div className="flex items-center gap-3">
-                  <button className="p-1 text-[var(--text-secondary)] hover:text-[var(--text-primary)]">
-                    {category.isOpen ?
-                  <FolderOpen size={18} className="text-brand-500" /> :
-
-                  <Folder size={18} />
-                  }
-                  </button>
-                  <span className="font-medium text-[var(--text-primary)]">
-                    {category.name}
-                  </span>
-                </div>
-                <div className="flex items-center gap-4">
-                  <span className="text-sm text-[var(--text-secondary)] w-12 text-right">
-                    {category.count}
-                  </span>
-                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button className="p-1.5 text-[var(--text-secondary)] hover:text-brand-600 rounded">
-                      <Edit size={16} />
-                    </button>
-                    <button className="p-1.5 text-[var(--text-secondary)] hover:text-destructive-600 rounded">
-                      <Trash2 size={16} />
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              {category.isOpen && category.children.length > 0 &&
-            <div className="ml-6 pl-4 border-l border-[var(--border-color)] mt-1 space-y-1">
-                  {category.children.map((child) =>
-              <div
-                key={child.id}
-                className="flex items-center justify-between p-2.5 rounded-lg hover:bg-[var(--bg-secondary)] transition-colors group">
-                
-                      <div className="flex items-center gap-3">
-                        <span className="w-4 h-px bg-[var(--border-color)]"></span>
-                        <span className="text-[var(--text-primary)]">
-                          {child.name}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-4">
-                        <span className="text-sm text-[var(--text-secondary)] w-12 text-right">
-                          {child.count}
-                        </span>
-                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <button className="p-1.5 text-[var(--text-secondary)] hover:text-brand-600 rounded">
-                            <Edit size={16} />
-                          </button>
-                          <button className="p-1.5 text-[var(--text-secondary)] hover:text-destructive-600 rounded">
-                            <Trash2 size={16} />
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-              )}
-                  <button className="flex items-center gap-2 p-2.5 text-sm text-brand-600 hover:text-brand-700 font-medium ml-4">
-                    <Plus size={16} /> Add Subcategory
-                  </button>
-                </div>
-            }
-            </div>
+          {categories.length === 0 ? (
+            <p className="text-sm text-[var(--text-secondary)] p-4">No categories found.</p>
+          ) : (
+            categories.map((category) => (
+              <CategoryRow
+                key={String(category.id)}
+                category={category}
+                depth={0}
+                onDelete={handleDelete}
+              />
+            ))
           )}
         </div>
       </div>
-    </div>);
-
+    </div>
+  );
 }

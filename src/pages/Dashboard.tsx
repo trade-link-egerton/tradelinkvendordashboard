@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Banknote,
@@ -7,8 +7,8 @@ import {
   Calculator,
   Plus,
   ArrowRight,
-  AlertTriangle } from
-'lucide-react';
+  AlertTriangle
+} from 'lucide-react';
 import {
   LineChart,
   Line,
@@ -16,114 +16,109 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip,
-  ResponsiveContainer } from
-'recharts';
+  ResponsiveContainer
+} from 'recharts';
+import { toast } from 'sonner';
 import { KPICard } from '../components/shared/KPICard';
 import { StatusBadge } from '../components/shared/StatusBadge';
-// Mock Data
-const revenueData = [
-{
-  name: 'Mon',
-  value: 45000
-},
-{
-  name: 'Tue',
-  value: 52000
-},
-{
-  name: 'Wed',
-  value: 38000
-},
-{
-  name: 'Thu',
-  value: 65000
-},
-{
-  name: 'Fri',
-  value: 84000
-},
-{
-  name: 'Sat',
-  value: 92000
-},
-{
-  name: 'Sun',
-  value: 78000
-}];
+import {
+  DashboardSummary,
+  getDashboardSummary,
+  getLowStock,
+  getRevenueSeries
+} from '../lib/vendorApi';
 
-const recentOrders = [
-{
-  id: '#ORD-8492',
-  customer: 'J*** K.',
-  items: 3,
-  total: 'KES 12,450',
-  date: 'Today, 10:42 AM',
-  status: 'Pending'
-},
-{
-  id: '#ORD-8491',
-  customer: 'M*** S.',
-  items: 1,
-  total: 'KES 3,200',
-  date: 'Today, 09:15 AM',
-  status: 'Packed'
-},
-{
-  id: '#ORD-8490',
-  customer: 'A*** W.',
-  items: 5,
-  total: 'KES 45,000',
-  date: 'Yesterday',
-  status: 'Shipped'
-},
-{
-  id: '#ORD-8489',
-  customer: 'E*** N.',
-  items: 2,
-  total: 'KES 8,900',
-  date: 'Yesterday',
-  status: 'Delivered'
-},
-{
-  id: '#ORD-8488',
-  customer: 'D*** O.',
-  items: 1,
-  total: 'KES 1,500',
-  date: 'Oct 24',
-  status: 'Cancelled'
-}];
+type ChartPeriod = 'day' | 'week' | 'month';
 
-const lowStockItems = [
-{
-  name: 'Samsung Galaxy A54',
-  stock: 3,
-  threshold: 5
-},
-{
-  name: 'Sony WH-1000XM5',
-  stock: 1,
-  threshold: 3
-},
-{
-  name: 'Anker PowerCore 20K',
-  stock: 0,
-  threshold: 10
-}];
+interface ChartRow {
+  name: string;
+  value: number;
+}
+
+const EMPTY_SUMMARY: DashboardSummary = {
+  revenueToday: 0,
+  ordersToday: 0,
+  pendingOrders: 0,
+  lowStockCount: 0,
+  topProducts: [],
+  recentOrders: []
+};
+
+function toNumber(value: unknown): number {
+  if (typeof value === 'number') {
+    return value;
+  }
+
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function toOrderStatus(status: unknown): string {
+  if (typeof status !== 'string') {
+    return 'Pending';
+  }
+
+  return status.charAt(0).toUpperCase() + status.slice(1).toLowerCase();
+}
 
 export function Dashboard() {
-  const [chartPeriod, setChartPeriod] = useState<'day' | 'week' | 'month'>(
-    'week'
-  );
+  const [chartPeriod, setChartPeriod] = useState<ChartPeriod>('week');
+  const [summary, setSummary] = useState<DashboardSummary>(EMPTY_SUMMARY);
+  const [revenueData, setRevenueData] = useState<ChartRow[]>([]);
+  const [lowStockItems, setLowStockItems] = useState<Array<Record<string, unknown>>>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const loadDashboard = async () => {
+      setIsLoading(true);
+
+      try {
+        const periodMap: Record<ChartPeriod, string> = {
+          day: 'today',
+          week: '7d',
+          month: '30d'
+        };
+
+        const [summaryResponse, lowStockResponse, revenueResponse] = await Promise.all([
+          getDashboardSummary(),
+          getLowStock(),
+          getRevenueSeries({ range: periodMap[chartPeriod] })
+        ]);
+
+        setSummary(summaryResponse || EMPTY_SUMMARY);
+        setLowStockItems(lowStockResponse);
+        setRevenueData(
+          revenueResponse.length > 0
+            ? revenueResponse.map((point) => ({ name: point.label, value: point.value }))
+            : [{ name: 'Today', value: toNumber(summaryResponse?.revenueToday) }]
+        );
+      } catch {
+        toast.error('Failed to load dashboard data.');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    void loadDashboard();
+  }, [chartPeriod]);
+
+  const avgOrderValue = useMemo(() => {
+    if (!summary.ordersToday) {
+      return 0;
+    }
+
+    return summary.revenueToday / summary.ordersToday;
+  }, [summary.ordersToday, summary.revenueToday]);
+
   return (
     <div className="space-y-6">
-      {/* Header & Actions */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-heading font-bold text-[var(--text-primary)]">
             Dashboard Overview
           </h1>
           <p className="text-[var(--text-secondary)]">
-            Welcome back, here's what's happening with your store today.
+            Welcome back, here&apos;s what&apos;s happening with your store today.
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -133,188 +128,122 @@ export function Dashboard() {
         </div>
       </div>
 
-      {/* KPIs */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
-        <KPICard
-          title="Total Revenue"
-          value="KES 847,320"
-          icon={Banknote}
-          trend={{
-            value: 12.5,
-            isPositive: true
-          }} />
-        
-        <KPICard
-          title="Orders Today"
-          value="23"
-          icon={ShoppingBag}
-          trend={{
-            value: 5.2,
-            isPositive: true
-          }} />
-        
-        <KPICard
-          title="Pending Shipments"
-          value="8"
-          icon={Truck}
-          trend={{
-            value: 2.1,
-            isPositive: false
-          }} />
-        
-        <KPICard
-          title="Avg. Order Value"
-          value="KES 2,450"
-          icon={Calculator}
-          trend={{
-            value: 0.8,
-            isPositive: true
-          }} />
-        
+        <KPICard title="Revenue Today" value={`KES ${toNumber(summary.revenueToday).toLocaleString()}`} icon={Banknote} />
+        <KPICard title="Orders Today" value={String(toNumber(summary.ordersToday))} icon={ShoppingBag} />
+        <KPICard title="Pending Orders" value={String(toNumber(summary.pendingOrders))} icon={Truck} />
+        <KPICard title="Avg. Order Value" value={`KES ${avgOrderValue.toLocaleString()}`} icon={Calculator} />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Chart */}
         <div className="card p-5 lg:col-span-2">
           <div className="flex items-center justify-between mb-6">
-            <h2 className="text-lg font-semibold text-[var(--text-primary)]">
-              Revenue Overview
-            </h2>
+            <h2 className="text-lg font-semibold text-[var(--text-primary)]">Revenue Overview</h2>
             <div className="flex bg-[var(--bg-secondary)] p-1 rounded-lg border border-[var(--border-color)]">
-              {(['day', 'week', 'month'] as const).map((period) =>
-              <button
-                key={period}
-                onClick={() => setChartPeriod(period)}
-                className={`px-3 py-1 text-sm font-medium rounded-md capitalize transition-colors ${chartPeriod === period ? 'bg-[var(--bg-primary)] text-[var(--text-primary)] shadow-sm' : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'}`}>
-                
+              {(['day', 'week', 'month'] as const).map((period) => (
+                <button
+                  key={period}
+                  onClick={() => setChartPeriod(period)}
+                  className={`px-3 py-1 text-sm font-medium rounded-md capitalize transition-colors ${
+                    chartPeriod === period
+                      ? 'bg-[var(--bg-primary)] text-[var(--text-primary)] shadow-sm'
+                      : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+                  }`}
+                >
                   {period}
                 </button>
-              )}
+              ))}
             </div>
           </div>
           <div className="h-[300px] w-full">
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart
-                data={revenueData}
-                margin={{
-                  top: 5,
-                  right: 20,
-                  bottom: 5,
-                  left: 0
-                }}>
-                
-                <CartesianGrid
-                  strokeDasharray="3 3"
-                  vertical={false}
-                  stroke="var(--border-color)" />
-                
+              <LineChart data={revenueData} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border-color)" />
                 <XAxis
                   dataKey="name"
                   axisLine={false}
                   tickLine={false}
-                  tick={{
-                    fill: 'var(--text-secondary)',
-                    fontSize: 12
-                  }}
-                  dy={10} />
-                
+                  tick={{ fill: 'var(--text-secondary)', fontSize: 12 }}
+                  dy={10}
+                />
                 <YAxis
                   axisLine={false}
                   tickLine={false}
-                  tick={{
-                    fill: 'var(--text-secondary)',
-                    fontSize: 12
-                  }}
-                  tickFormatter={(value) => `K${value / 1000}k`} />
-                
+                  tick={{ fill: 'var(--text-secondary)', fontSize: 12 }}
+                  tickFormatter={(value) => `K${value / 1000}k`}
+                />
                 <Tooltip
                   contentStyle={{
                     backgroundColor: 'var(--bg-primary)',
                     borderColor: 'var(--border-color)',
                     borderRadius: '8px'
                   }}
-                  itemStyle={{
-                    color: 'var(--text-primary)'
-                  }}
-                  formatter={(value: number) => [
-                  `KES ${value.toLocaleString()}`,
-                  'Revenue']
-                  } />
-                
+                  itemStyle={{ color: 'var(--text-primary)' }}
+                  formatter={(value: number) => [`KES ${value.toLocaleString()}`, 'Revenue']}
+                />
                 <Line
                   type="monotone"
                   dataKey="value"
                   stroke="#1d4ed8"
                   strokeWidth={3}
-                  dot={{
-                    r: 4,
-                    fill: '#1d4ed8',
-                    strokeWidth: 2,
-                    stroke: 'var(--bg-primary)'
-                  }}
-                  activeDot={{
-                    r: 6,
-                    strokeWidth: 0
-                  }} />
-                
+                  dot={{ r: 4, fill: '#1d4ed8', strokeWidth: 2, stroke: 'var(--bg-primary)' }}
+                  activeDot={{ r: 6, strokeWidth: 0 }}
+                />
               </LineChart>
             </ResponsiveContainer>
           </div>
         </div>
 
-        {/* Low Stock Alerts */}
         <div className="card p-0 flex flex-col">
           <div className="p-5 border-b border-[var(--border-color)] flex items-center gap-2">
             <AlertTriangle className="text-warning-500" size={20} />
-            <h2 className="text-lg font-semibold text-[var(--text-primary)]">
-              Low Stock Alerts
-            </h2>
+            <h2 className="text-lg font-semibold text-[var(--text-primary)]">Low Stock Alerts</h2>
           </div>
           <div className="flex-1 overflow-y-auto p-2">
-            {lowStockItems.map((item, i) =>
-            <div
-              key={i}
-              className="flex items-center justify-between p-3 hover:bg-[var(--bg-secondary)] rounded-lg transition-colors">
-              
-                <div>
-                  <p className="text-sm font-medium text-[var(--text-primary)] truncate max-w-[180px]">
-                    {item.name}
-                  </p>
-                  <p className="text-xs text-[var(--text-secondary)] mt-0.5">
-                    Threshold: {item.threshold}
-                  </p>
-                </div>
-                <div className="text-right">
-                  <span
-                  className={`inline-flex items-center justify-center px-2 py-1 rounded text-xs font-bold font-mono ${item.stock === 0 ? 'bg-destructive-100 text-destructive-700 dark:bg-destructive-900/30 dark:text-destructive-400' : 'bg-warning-100 text-warning-700 dark:bg-warning-900/30 dark:text-warning-400'}`}>
-                  
-                    {item.stock} left
-                  </span>
-                </div>
-              </div>
+            {lowStockItems.length === 0 && !isLoading ? (
+              <p className="text-sm text-[var(--text-secondary)] p-4">No low-stock products right now.</p>
+            ) : (
+              lowStockItems.map((item, i) => {
+                const name = String(item.name || item.product_name || `Item ${i + 1}`);
+                const stock = toNumber(item.stock_quantity ?? item.stock ?? 0);
+                const threshold = toNumber(item.threshold ?? 5);
+                return (
+                  <div
+                    key={`${name}-${i}`}
+                    className="flex items-center justify-between p-3 hover:bg-[var(--bg-secondary)] rounded-lg transition-colors"
+                  >
+                    <div>
+                      <p className="text-sm font-medium text-[var(--text-primary)] truncate max-w-[180px]">{name}</p>
+                      <p className="text-xs text-[var(--text-secondary)] mt-0.5">Threshold: {threshold}</p>
+                    </div>
+                    <div className="text-right">
+                      <span
+                        className={`inline-flex items-center justify-center px-2 py-1 rounded text-xs font-bold font-mono ${
+                          stock === 0
+                            ? 'bg-destructive-100 text-destructive-700 dark:bg-destructive-900/30 dark:text-destructive-400'
+                            : 'bg-warning-100 text-warning-700 dark:bg-warning-900/30 dark:text-warning-400'
+                        }`}
+                      >
+                        {stock} left
+                      </span>
+                    </div>
+                  </div>
+                );
+              })
             )}
           </div>
           <div className="p-4 border-t border-[var(--border-color)] mt-auto">
-            <Link
-              to="/products"
-              className="text-sm font-medium text-brand-600 hover:text-brand-700 flex items-center justify-center gap-1">
-              
+            <Link to="/products" className="text-sm font-medium text-brand-600 hover:text-brand-700 flex items-center justify-center gap-1">
               Manage Inventory <ArrowRight size={16} />
             </Link>
           </div>
         </div>
       </div>
 
-      {/* Recent Orders */}
       <div className="card overflow-hidden">
         <div className="p-5 border-b border-[var(--border-color)] flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-[var(--text-primary)]">
-            Recent Orders
-          </h2>
-          <Link
-            to="/orders"
-            className="text-sm font-medium text-brand-600 hover:text-brand-700">
-            
+          <h2 className="text-lg font-semibold text-[var(--text-primary)]">Recent Orders</h2>
+          <Link to="/orders" className="text-sm font-medium text-brand-600 hover:text-brand-700">
             View All
           </Link>
         </div>
@@ -331,46 +260,54 @@ export function Dashboard() {
               </tr>
             </thead>
             <tbody>
-              {recentOrders.map((order, i) =>
-              <tr
-                key={i}
-                className="border-b border-[var(--border-color)] last:border-0 hover:bg-[var(--bg-secondary)]/50 transition-colors">
-                
-                  <td className="px-5 py-3 font-mono font-medium text-[var(--text-primary)]">
-                    {order.id}
-                  </td>
-                  <td className="px-5 py-3 text-[var(--text-primary)]">
-                    {order.customer}
-                  </td>
-                  <td className="px-5 py-3 text-[var(--text-secondary)]">
-                    {order.items}
-                  </td>
-                  <td className="px-5 py-3 font-mono text-[var(--text-primary)]">
-                    {order.total}
-                  </td>
-                  <td className="px-5 py-3 text-[var(--text-secondary)]">
-                    {order.date}
-                  </td>
-                  <td className="px-5 py-3">
-                    <StatusBadge
-                    status={order.status}
-                    variant={
-                    order.status === 'Delivered' ?
-                    'success' :
-                    order.status === 'Cancelled' ?
-                    'destructive' :
-                    order.status === 'Pending' ?
-                    'warning' :
-                    'info'
-                    } />
-                  
+              {summary.recentOrders.length === 0 && !isLoading ? (
+                <tr>
+                  <td colSpan={6} className="px-5 py-6 text-center text-[var(--text-secondary)]">
+                    No recent orders yet.
                   </td>
                 </tr>
+              ) : (
+                summary.recentOrders.map((order, i) => {
+                  const id = String(order.id || order.order_id || i + 1);
+                  const customer = String(order.customer_name || order.customer || 'Customer');
+                  const items = toNumber(order.items_count || order.items || 0);
+                  const total = toNumber(order.total_amount || order.total || 0);
+                  const dateRaw = order.created_at || order.date;
+                  const status = toOrderStatus(order.status);
+                  return (
+                    <tr
+                      key={id}
+                      className="border-b border-[var(--border-color)] last:border-0 hover:bg-[var(--bg-secondary)]/50 transition-colors"
+                    >
+                      <td className="px-5 py-3 font-mono font-medium text-[var(--text-primary)]">#{id}</td>
+                      <td className="px-5 py-3 text-[var(--text-primary)]">{customer}</td>
+                      <td className="px-5 py-3 text-[var(--text-secondary)]">{items}</td>
+                      <td className="px-5 py-3 font-mono text-[var(--text-primary)]">KES {total.toLocaleString()}</td>
+                      <td className="px-5 py-3 text-[var(--text-secondary)]">
+                        {typeof dateRaw === 'string' ? new Date(dateRaw).toLocaleString() : '-'}
+                      </td>
+                      <td className="px-5 py-3">
+                        <StatusBadge
+                          status={status}
+                          variant={
+                            status === 'Delivered'
+                              ? 'success'
+                              : status === 'Cancelled'
+                                ? 'destructive'
+                                : status === 'Pending'
+                                  ? 'warning'
+                                  : 'info'
+                          }
+                        />
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>
         </div>
       </div>
-    </div>);
-
+    </div>
+  );
 }

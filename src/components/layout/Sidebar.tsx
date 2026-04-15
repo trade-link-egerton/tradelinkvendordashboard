@@ -14,6 +14,7 @@ import {
   ChevronRight,
   Store } from
 'lucide-react';
+import { getVendorSession } from '../../lib/session';
 interface SidebarProps {
   isCollapsed: boolean;
   toggleCollapse: () => void;
@@ -73,6 +74,14 @@ export function Sidebar({
   isMobileOpen,
   closeMobile
 }: SidebarProps) {
+  const session = getVendorSession();
+  const initials = session.vendorName
+    .split(' ')
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase())
+    .join('') || 'VU';
+
   return (
     <>
       {/* Mobile Overlay */}
@@ -147,15 +156,15 @@ export function Sidebar({
             className={`flex items-center gap-3 ${isCollapsed ? 'justify-center' : ''}`}>
             
             <div className="w-8 h-8 rounded-full bg-accent-600 text-white flex items-center justify-center font-medium shrink-0">
-              JD
+              {initials}
             </div>
             {!isCollapsed &&
             <div className="overflow-hidden">
                 <p className="text-sm font-medium text-[var(--text-primary)] truncate">
-                  John Doe
+                  {session.vendorName}
                 </p>
                 <p className="text-xs text-[var(--text-secondary)] truncate">
-                  Vendor ID: #TL-8492
+                  Vendor ID: {session.vendorId}
                 </p>
               </div>
             }

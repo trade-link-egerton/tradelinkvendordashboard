@@ -19,20 +19,36 @@ import { Support } from './pages/Support';
 import { VendorApplication } from './pages/VendorApplication';
 import { Login } from './pages/Login';
 import { OnboardingChecklist } from './pages/OnboardingChecklist';
+import { isAuthenticated } from './lib/auth';
+
+function ProtectedRoute({ children }: { children: React.ReactNode }) {
+  if (!isAuthenticated()) {
+    return <Navigate to="/login" replace />;
+  }
+
+  return <>{children}</>;
+}
+
 export function App() {
   return (
     <ThemeProvider>
       <BrowserRouter>
         <Routes>
           {/* Public Routes */}
-          <Route path="/apply" element={<VendorApplication />} />
-          <Route path="/login" element={<Login />} />
+          <Route
+            path="/apply"
+            element={isAuthenticated() ? <Navigate to="/" replace /> : <VendorApplication />}
+          />
+          <Route
+            path="/login"
+            element={isAuthenticated() ? <Navigate to="/" replace /> : <Login />}
+          />
 
           {/* Onboarding Route */}
-          <Route path="/onboarding" element={<OnboardingChecklist />} />
+          <Route path="/onboarding" element={<ProtectedRoute><OnboardingChecklist /></ProtectedRoute>} />
 
           {/* Dashboard Routes */}
-          <Route path="/" element={<DashboardLayout />}>
+          <Route path="/" element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>}>
             <Route index element={<Dashboard />} />
             <Route path="products" element={<Products />} />
             <Route path="products/new" element={<AddProduct />} />

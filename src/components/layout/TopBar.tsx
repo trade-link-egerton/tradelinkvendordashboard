@@ -1,11 +1,13 @@
 import React from 'react';
 import { Menu, Bell, Sun, Moon, Search } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
+import { getVendorSession } from '../../lib/session';
 interface TopBarProps {
   openMobileSidebar: () => void;
 }
 export function TopBar({ openMobileSidebar }: TopBarProps) {
   const { theme, toggleTheme } = useTheme();
+  const session = getVendorSession();
   return (
     <header className="h-16 bg-[var(--bg-primary)] border-b border-[var(--border-color)] flex items-center justify-between px-4 lg:px-8 shrink-0 sticky top-0 z-30">
       <div className="flex items-center gap-4">
@@ -18,7 +20,7 @@ export function TopBar({ openMobileSidebar }: TopBarProps) {
 
         <div className="hidden md:flex items-center gap-2">
           <span className="font-heading font-semibold text-lg text-[var(--text-primary)]">
-            Nairobi Electronics Hub
+            {session.storeName}
           </span>
           <span className="px-2 py-0.5 rounded-full bg-success-500/10 text-success-600 text-xs font-medium border border-success-500/20">
             Active
