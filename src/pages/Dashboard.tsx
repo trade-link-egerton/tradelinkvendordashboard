@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { getVendorSession } from '../lib/session';
 import { Link } from 'react-router-dom';
 import {
   Banknote,
@@ -67,7 +68,7 @@ export function Dashboard() {
   const [revenueData, setRevenueData] = useState<ChartRow[]>([]);
   const [lowStockItems, setLowStockItems] = useState<Array<Record<string, unknown>>>([]);
   const [isLoading, setIsLoading] = useState(true);
-
+const session = getVendorSession();
   useEffect(() => {
     const loadDashboard = async () => {
       setIsLoading(true);
@@ -117,9 +118,9 @@ export function Dashboard() {
           <h1 className="text-2xl font-heading font-bold text-[var(--text-primary)]">
             Dashboard Overview
           </h1>
-          <p className="text-[var(--text-secondary)]">
-            Welcome back, here&apos;s what&apos;s happening with your store today.
-          </p>
+<p className="text-[var(--text-secondary)]">
+  Welcome back, {session.vendorName || 'Vendor'} 👋 — here&apos;s what&apos;s happening with {session.storeName || 'your store'} today.
+</p>
         </div>
         <div className="flex items-center gap-3">
           <Link to="/products/new" className="btn-primary">
