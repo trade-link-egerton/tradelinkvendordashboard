@@ -222,6 +222,8 @@ export interface DashboardSummary {
 }
 
 export interface Product {
+  category_name: string;
+  is_published: any;
   id: string;
   name: string;
   price: number;
