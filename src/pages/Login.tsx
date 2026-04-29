@@ -53,7 +53,7 @@ export function Login() {
         const vendor = await getVendorProfile();
         const store = await getStoreProfile().catch(() => ({} as any));
 
-        vendorName = vendor?.business_name || vendor?.username || 'Vendor User';
+        vendorName = vendor?.business_name || vendor?. business_name || 'Vendor User';
         vendorId = vendor?.user_id || vendor?.id || 'N/A';
         storeName = store?.name || vendorName || 'Your Store';
       } catch (err) {

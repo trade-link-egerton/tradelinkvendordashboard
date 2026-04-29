@@ -87,7 +87,7 @@ const session = getVendorSession();
         ]);
 
         setSummary(summaryResponse || EMPTY_SUMMARY);
-        setLowStockItems(lowStockResponse);
+        // setLowStockItems(lowStockResponse);
         setRevenueData(
           revenueResponse.length > 0
             ? revenueResponse.map((point) => ({ name: point.label, value: point.value }))
