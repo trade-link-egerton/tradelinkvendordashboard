@@ -19,11 +19,14 @@ interface ApiRequestOptions {
   body?: unknown;
   params?: Record<string, string | number | boolean | undefined | null>;
   skipAuth?: boolean;
+  baseUrl?: string;
 }
 
-function buildUrl(path: string, params?: ApiRequestOptions['params']): string {
+function buildUrl(path: string, params?: ApiRequestOptions['params'], baseUrl?: string): string {
   const normalizedPath = path.startsWith('/') ? path : `/${path}`;
-  const url = new URL(`${API_BASE_URL}${normalizedPath}`, window.location.origin);
+  const root = baseUrl ?? API_BASE_URL;
+  const normalizedBase = root.endsWith('/') ? root.slice(0, -1) : root;
+  const url = new URL(`${normalizedBase}${normalizedPath}`, window.location.origin);
 
   if (params) {
     Object.entries(params).forEach(([key, value]) => {
@@ -52,7 +55,7 @@ export async function apiRequest<T>(path: string, options: ApiRequestOptions = {
     headers.set('Content-Type', 'application/json');
   }
 
-  const response = await fetch(buildUrl(path, options.params), {
+  const response = await fetch(buildUrl(path, options.params, options.baseUrl), {
     method: options.method || 'GET',
     headers,
     body: options.body !== undefined ? JSON.stringify(options.body) : undefined

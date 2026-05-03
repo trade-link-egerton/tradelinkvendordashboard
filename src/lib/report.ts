@@ -177,14 +177,15 @@ export interface SalesReportParams {
  * Use getSalesOverview() if you need the full KPI payload.
  */
 export function getRevenueSeries(params?: { range?: DateRange }): Promise<RevenuePoint[]> {
-  return apiRequest<SalesReportResponse>('/reports/sales', {
+  return apiRequest<SalesReportResponse>('/sales', {
+    baseUrl: '/api/reports',
     params: params as Record<string, string>,
   }).then((res) => res.revenue_series ?? []);
 }
 
 /** Full sales overview including totals, avg order value, and top category. */
 export function getSalesOverview(params?: SalesReportParams): Promise<SalesReportResponse> {
-  return apiRequest('/reports/sales', { params: params as Record<string, string> });
+  return apiRequest('/sales', { baseUrl: '/api/reports', params: params as Record<string, string> });
 }
 
 /* ─── 2. ORDERS ─── */
@@ -198,7 +199,7 @@ export interface OrdersReportParams {
 }
 
 export function getOrdersReport(params?: OrdersReportParams): Promise<OrdersReportResponse> {
-  return apiRequest('/reports/orders', { params: params as Record<string, string> });
+  return apiRequest('/orders', { baseUrl: '/api/reports', params: params as Record<string, string> });
 }
 
 /* ─── 3. PRODUCTS ─── */
@@ -210,7 +211,7 @@ export interface ProductsReportParams {
 }
 
 export function getProductsReport(params?: ProductsReportParams): Promise<ProductsReportResponse> {
-  return apiRequest('/reports/products', { params: params as Record<string, string> });
+  return apiRequest('/products', { baseUrl: '/api/reports', params: params as Record<string, string> });
 }
 
 /* ─── 4. INVENTORY (stub — backend returns 501) ─── */
@@ -223,7 +224,7 @@ export interface InventoryReportParams {
 }
 
 export function getInventoryReport(params?: InventoryReportParams): Promise<InventoryReportResponse> {
-  return apiRequest('/reports/inventory', { params: params as Record<string, string> });
+  return apiRequest('/inventory', { baseUrl: '/api/reports', params: params as Record<string, string> });
 }
 
 /* ─── 5. STOCK MOVEMENTS (stub — backend returns 501) ─── */
@@ -234,7 +235,7 @@ export interface MovementsReportParams {
 }
 
 export function getMovementsReport(params?: MovementsReportParams): Promise<MovementsReportResponse> {
-  return apiRequest('/reports/movements', { params: params as Record<string, string> });
+  return apiRequest('/movements', { baseUrl: '/api/reports', params: params as Record<string, string> });
 }
 
 /* ─── 6. EARNINGS (stub — backend returns 501) ─── */
@@ -244,7 +245,7 @@ export interface EarningsReportParams {
 }
 
 export function getEarningsReport(params?: EarningsReportParams): Promise<EarningsReportResponse> {
-  return apiRequest('/reports/earnings', { params: params as Record<string, string> });
+  return apiRequest('/earnings', { baseUrl: '/api/reports', params: params as Record<string, string> });
 }
 
 /* ─── 7. PAYOUTS (stub — backend returns 501) ─── */
@@ -256,7 +257,7 @@ export interface PayoutsReportParams {
 }
 
 export function getPayoutsReport(params?: PayoutsReportParams): Promise<PayoutsReportResponse> {
-  return apiRequest('/reports/payouts', { params: params as Record<string, string> });
+  return apiRequest('/payouts', { baseUrl: '/api/reports', params: params as Record<string, string> });
 }
 
 /* ─── 8. REVIEWS (stub — backend returns 501) ─── */
@@ -268,7 +269,7 @@ export interface ReviewsReportParams {
 }
 
 export function getReviewsReport(params?: ReviewsReportParams): Promise<ReviewsReportResponse> {
-  return apiRequest('/reports/reviews', { params: params as Record<string, string> });
+  return apiRequest('/reviews', { baseUrl: '/api/reports', params: params as Record<string, string> });
 }
 
 /* ─── 9. SHIPMENTS (stub — backend returns 501) ─── */
@@ -280,7 +281,7 @@ export interface ShipmentsReportParams {
 }
 
 export function getShipmentsReport(params?: ShipmentsReportParams): Promise<ShipmentsReportResponse> {
-  return apiRequest('/reports/shipments', { params: params as Record<string, string> });
+  return apiRequest('/shipments', { baseUrl: '/api/reports', params: params as Record<string, string> });
 }
 
 /* ─── 10. SUBORDERS (stub — backend returns 501) ─── */
@@ -291,5 +292,5 @@ export interface SubordersReportParams {
 }
 
 export function getSubordersReport(params?: SubordersReportParams): Promise<SubordersReportResponse> {
-  return apiRequest('/reports/suborders', { params: params as Record<string, string> });
+  return apiRequest('/suborders', { baseUrl: '/api/reports', params: params as Record<string, string> });
 }
