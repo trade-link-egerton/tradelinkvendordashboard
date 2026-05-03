@@ -30,7 +30,7 @@ const navItems = [
   { icon: Package, label: 'Products', path: '/products' },
   { icon: Tags, label: 'Categories', path: '/categories' },
   { icon: ShoppingCart, label: 'Orders', path: '/orders' },
-  { icon: RotateCcw, label: 'Returns', path: '/returns' },
+  // { icon: RotateCcw, label: 'Returns', path: '/returns' },
   { icon: BarChart3, label: 'Reports', path: '/reports' },
   { icon: Wallet, label: 'Payouts', path: '/payouts' },
   { icon: Settings, label: 'Store Settings', path: '/settings' },

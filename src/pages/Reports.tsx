@@ -103,6 +103,14 @@ function csvEscape(value: string): string {
   return `"${value.replace(/"/g, '""')}"`;
 }
 
+function formatCsvCell(value: string): string {
+  return csvEscape(value.replace(/\r?\n/g, ' '));
+}
+
+function formatPdfValue(value: string): string {
+  return value.replace(/\s+/g, ' ').trim();
+}
+
 function sanitizeFileName(name: string): string {
   return name
     .toLowerCase()
@@ -123,27 +131,30 @@ function downloadTextFile(filename: string, content: string, mimeType: string) {
 
 function buildCsvContent(payload: ReportExportPayload): string {
   const lines: string[] = [];
-  lines.push(`Report,${csvEscape(payload.title)}`);
+  lines.push('\ufeffReport,Value');
+  lines.push(`Title,${formatCsvCell(payload.title)}`);
 
   if (payload.description) {
-    lines.push(`Description,${csvEscape(payload.description)}`);
+    lines.push(`Description,${formatCsvCell(payload.description)}`);
   }
+
+  lines.push(`Generated,${formatCsvCell(new Date().toLocaleString('en-KE'))}`);
 
   if (payload.summary?.length) {
     lines.push('');
-    lines.push('Summary');
+    lines.push('Summary,Value');
     lines.push('Label,Value');
     payload.summary.forEach((item) => {
-      lines.push(`${csvEscape(item.label)},${csvEscape(item.value)}`);
+      lines.push(`${formatCsvCell(item.label)},${formatCsvCell(item.value)}`);
     });
   }
 
   if (payload.columns?.length && payload.rows?.length) {
     lines.push('');
     lines.push('Data');
-    lines.push(payload.columns.map(csvEscape).join(','));
+    lines.push(payload.columns.map(formatCsvCell).join(','));
     payload.rows.forEach((row) => {
-      lines.push(payload.columns!.map((column) => csvEscape(row[column] ?? '—')).join(','));
+      lines.push(payload.columns!.map((column) => formatCsvCell(row[column] ?? '—')).join(','));
     });
   }
 
@@ -152,52 +163,212 @@ function buildCsvContent(payload: ReportExportPayload): string {
 
 function buildPdfContent(payload: ReportExportPayload) {
   const doc = new jsPDF({ unit: 'pt', format: 'a4' });
+  doc.setProperties({
+    title: `Tradlink - ${payload.title}`,
+    subject: payload.description ?? 'Report export',
+    author: 'Tradlink',
+    creator: 'TradeLink Vendor Dashboard',
+  });
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
-  const margin = 40;
-  const maxWidth = pageWidth - margin * 2;
-  let y = 48;
+  const margin = 36;
+  const contentWidth = pageWidth - margin * 2;
+  const themeColor: [number, number, number] = [15, 110, 86];
+  const themeLight: [number, number, number] = [225, 245, 238];
+  const textDark: [number, number, number] = [28, 33, 41];
+  const textMuted: [number, number, number] = [94, 108, 120];
+  let y = 24;
+  let pageNumber = 1;
 
-  const ensureSpace = (lineCount: number, fontSize: number) => {
-    const neededHeight = lineCount * (fontSize + 4);
-    if (y + neededHeight > pageHeight - margin) {
-      doc.addPage();
-      y = margin;
+  const addFooter = () => {
+    doc.setDrawColor(230, 233, 238);
+    doc.setLineWidth(0.8);
+    doc.line(margin, pageHeight - 34, pageWidth - margin, pageHeight - 34);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+    doc.setTextColor(...textMuted);
+    doc.text('Generated from Reports & Analytics', margin, pageHeight - 18);
+    doc.text(`Page ${pageNumber}`, pageWidth - margin, pageHeight - 18, { align: 'right' });
+  };
+
+  const newPage = () => {
+    addFooter();
+    doc.addPage();
+    pageNumber += 1;
+    y = 24;
+    renderHeader();
+  };
+
+  const ensurePageSpace = (heightNeeded: number) => {
+    if (y + heightNeeded > pageHeight - 52) {
+      newPage();
     }
   };
 
-  const writeText = (text: string, fontSize: number, fontStyle: 'normal' | 'bold' = 'normal') => {
-    doc.setFont('helvetica', fontStyle);
-    doc.setFontSize(fontSize);
-    const lines = doc.splitTextToSize(text, maxWidth) as string[];
-    ensureSpace(lines.length, fontSize);
-    doc.text(lines, margin, y);
-    y += lines.length * (fontSize + 4);
+  const renderHeader = () => {
+    doc.setFillColor(255, 255, 255);
+    doc.roundedRect(margin, y, contentWidth, 82, 14, 14, 'F');
+    doc.setDrawColor(227, 233, 237);
+    doc.roundedRect(margin, y, contentWidth, 82, 14, 14, 'S');
+
+    doc.setFillColor(...themeColor);
+    doc.circle(margin + 28, y + 24, 18, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(12);
+    doc.text('TL', margin + 28, y + 28, { align: 'center' });
+
+    doc.setFillColor(...themeLight);
+    doc.roundedRect(margin + 56, y + 12, 62, 20, 8, 8, 'F');
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9);
+    doc.setTextColor(...themeColor);
+    doc.text('REPORT', margin + 87, y + 25, { align: 'center' });
+
+    doc.setTextColor(...textDark);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(20);
+    doc.text('Tradlink', margin + 56, y + 54);
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(10);
+    doc.setTextColor(...textMuted);
+    const subtitle = payload.description ? formatPdfValue(payload.description) : 'Report export';
+    doc.text(payload.title, margin + 56, y + 68);
+    doc.text(subtitle, margin + 56, y + 82);
+
+    doc.setFillColor(...themeColor);
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(9);
+    doc.text(`Generated ${new Date().toLocaleString('en-KE')}`, margin + contentWidth - 16, y + 68, { align: 'right' });
+    y += 104;
+    doc.setTextColor(...textDark);
   };
 
-  writeText(payload.title, 18, 'bold');
+  const renderSectionTitle = (title: string) => {
+    ensurePageSpace(28);
+    doc.setFillColor(...themeLight);
+    doc.roundedRect(margin, y, contentWidth, 22, 8, 8, 'F');
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(11);
+    doc.setTextColor(...themeColor);
+    doc.text(title, margin + 12, y + 15);
+    y += 34;
+    doc.setTextColor(...textDark);
+  };
 
-  if (payload.description) {
-    y += 4;
-    writeText(payload.description, 11);
-  }
+  const renderKpiCard = (x: number, cardY: number, width: number, label: string, value: string) => {
+    doc.setDrawColor(225, 230, 236);
+    doc.setFillColor(255, 255, 255);
+    doc.roundedRect(x, cardY, width, 54, 10, 10, 'FD');
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8.5);
+    doc.setTextColor(...textMuted);
+    doc.text(label.toUpperCase(), x + 10, cardY + 16);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(13);
+    doc.setTextColor(...textDark);
+    const lines = doc.splitTextToSize(formatPdfValue(value), width - 20) as string[];
+    doc.text(lines, x + 10, cardY + 33);
+  };
 
-  if (payload.summary?.length) {
-    y += 8;
-    writeText('Summary', 13, 'bold');
-    payload.summary.forEach((item) => {
-      writeText(`${item.label}: ${item.value}`, 11);
+  const renderSummaryCards = () => {
+    if (!payload.summary?.length) return;
+    ensurePageSpace(132);
+    renderSectionTitle('Overview');
+    const cards = payload.summary.slice(0, 6);
+    const cardWidth = (contentWidth - 12) / 2;
+    const cardHeight = 54;
+    cards.forEach((item, index) => {
+      const column = index % 2;
+      const row = Math.floor(index / 2);
+      const x = margin + column * (cardWidth + 12);
+      const cardY = y + row * (cardHeight + 12);
+      if (cardY + cardHeight > pageHeight - 52) {
+        newPage();
+        renderSectionTitle('Overview');
+      }
+      renderKpiCard(x, cardY, cardWidth, item.label, item.value);
     });
-  }
+    const rowsUsed = Math.ceil(cards.length / 2);
+    y += rowsUsed * (cardHeight + 12) + 6;
+  };
 
-  if (payload.columns?.length && payload.rows?.length) {
-    y += 8;
-    writeText('Data', 13, 'bold');
-    writeText(payload.columns.join(' | '), 10, 'bold');
-    payload.rows.forEach((row) => {
-      writeText(payload.columns!.map((column) => row[column] ?? '—').join(' | '), 10);
-    });
-  }
+  const columnWidthsFromRows = (columns: string[], rows: Record<string, string>[]) => {
+    const maxWidths = columns.map((column) => Math.max(column.length, ...rows.map((row) => formatPdfValue(row[column] ?? '—').length)));
+    const baseTotal = maxWidths.reduce((sum, value) => sum + value, 0) || columns.length;
+    const spacing = 12 * (columns.length - 1);
+    return maxWidths.map((value) => Math.max(55, ((contentWidth - spacing) * value) / baseTotal));
+  };
+
+  const renderTable = () => {
+    if (!payload.columns?.length || !payload.rows?.length) return;
+    ensurePageSpace(70);
+    renderSectionTitle('Data');
+
+    const columns = payload.columns;
+    const rows = payload.rows;
+    const widths = columnWidthsFromRows(columns, rows);
+    const startX = margin;
+    let rowY = y;
+
+    const drawHeader = () => {
+      doc.setFillColor(15, 110, 86);
+      doc.roundedRect(startX, rowY, contentWidth, 24, 6, 6, 'F');
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(9);
+      doc.setTextColor(255, 255, 255);
+      let cursorX = startX + 8;
+      columns.forEach((column, index) => {
+        doc.text(formatPdfValue(column), cursorX, rowY + 15);
+        cursorX += widths[index] + 12;
+      });
+      rowY += 28;
+    };
+
+    const drawRow = (row: Record<string, string>, index: number) => {
+      const lineCount = Math.max(
+        1,
+        ...columns.map((column, columnIndex) => {
+          const lines = doc.splitTextToSize(formatPdfValue(row[column] ?? '—'), widths[columnIndex] - 10) as string[];
+          return lines.length;
+        })
+      );
+      const rowHeight = Math.max(22, lineCount * 13 + 10);
+      if (rowY + rowHeight > pageHeight - 52) {
+        newPage();
+        renderSectionTitle('Data');
+        rowY = y;
+        drawHeader();
+      }
+
+      doc.setFillColor(index % 2 === 0 ? 248 : 252, index % 2 === 0 ? 250 : 252, index % 2 === 0 ? 252 : 255);
+      doc.setDrawColor(230, 233, 238);
+      doc.roundedRect(startX, rowY, contentWidth, rowHeight, 0, 0, 'FD');
+
+      let cursorX = startX + 8;
+      columns.forEach((column, columnIndex) => {
+        const text = formatPdfValue(row[column] ?? '—');
+        const lines = doc.splitTextToSize(text, widths[columnIndex] - 10) as string[];
+        doc.setFont('helvetica', columnIndex === 0 ? 'bold' : 'normal');
+        doc.setFontSize(9);
+        doc.setTextColor(...textDark);
+        doc.text(lines, cursorX, rowY + 14);
+        cursorX += widths[columnIndex] + 12;
+      });
+      rowY += rowHeight;
+    };
+
+    drawHeader();
+    rows.forEach((row, index) => drawRow(row, index));
+    y = rowY + 12;
+  };
+
+  renderHeader();
+  renderSummaryCards();
+  renderTable();
+
+  addFooter();
 
   return doc;
 }
@@ -1221,3 +1392,5 @@ export function Reports() {
     </div>
   );
 }
+
+
