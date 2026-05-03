@@ -173,7 +173,7 @@ export function AddProduct() {
                 <input
                   type="text"
                   placeholder="e.g., Premium Leather Jacket"
-                  className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all outline-none"
+                  className="w-full px-4 py-2.5 rounded-xl border border-gray-200 bg-white text-gray-900 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all outline-none"
                   value={form.name}
                   onChange={handleChange('name')}
                   required
@@ -183,7 +183,7 @@ export function AddProduct() {
                 <label className="block text-sm font-semibold mb-1.5 text-gray-700">Description</label>
                 <textarea
                   placeholder="Describe the features, materials, and benefits..."
-                  className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all outline-none min-h-[180px]"
+                  className="w-full px-4 py-2.5 rounded-xl border border-gray-200 bg-white text-gray-900 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all outline-none min-h-[180px]"
                   value={form.description}
                   onChange={handleChange('description')}
                 />
@@ -204,7 +204,7 @@ export function AddProduct() {
                   <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 font-medium">KES</span>
                   <input
                     type="number"
-                    className="w-full pl-14 pr-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all outline-none font-mono"
+                    className="w-full pl-14 pr-4 py-2.5 rounded-xl border border-gray-200 bg-white text-gray-900 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all outline-none font-mono"
                     value={form.price}
                     onChange={handleChange('price')}
                     min={0}
@@ -215,7 +215,7 @@ export function AddProduct() {
                 <label className="block text-sm font-semibold mb-1.5 text-gray-700">Available Stock</label>
                 <input
                   type="number"
-                  className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all outline-none font-mono"
+                  className="w-full px-4 py-2.5 rounded-xl border border-gray-200 bg-white text-gray-900 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all outline-none font-mono"
                   value={form.stock_quantity}
                   onChange={handleChange('stock_quantity')}
                   min={0}
@@ -289,7 +289,7 @@ export function AddProduct() {
                 <input
                   type="url"
                   placeholder="https://images.unsplash.com/..."
-                  className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-blue-500/20 outline-none text-xs font-mono"
+                  className="w-full px-4 py-2.5 rounded-xl border border-gray-200 bg-white text-gray-900 focus:ring-2 focus:ring-blue-500/20 outline-none text-xs font-mono"
                   value={form.image_url}
                   onChange={handleChange('image_url')}
                 />
