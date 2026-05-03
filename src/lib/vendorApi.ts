@@ -115,6 +115,7 @@ export function deleteCategory(id: string) {
   });
 }
 export interface RegisterResponse {
+  message?: string;
   user?: {
     id?: string;
     username?: string;

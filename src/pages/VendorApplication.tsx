@@ -50,6 +50,7 @@ interface VendorRegistrationPayload {
   username: string;
   password: string;
   password_confirm: string;
+  role: 'vendor';
   first_name: string;
   last_name: string;
   phone_number: string;
@@ -196,6 +197,7 @@ export function VendorApplication() {
       username: formData.username.trim(),
       password: formData.password,
       password_confirm: formData.passwordConfirm,
+      role: 'vendor',
       first_name: formData.firstName.trim() || fallbackFirstName,
       last_name: formData.lastName.trim() || fallbackLastName,
       phone_number: formData.businessPhone.trim(),
